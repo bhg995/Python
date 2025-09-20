@@ -2,6 +2,8 @@ from tkinter import *
 from tkinter import messagebox
 import string, secrets
 import pyperclip
+import json
+import os
 
 
 def generate_password():
@@ -17,10 +19,10 @@ def generate_password():
     symbols = '!#$%&(_^?)*+@[]{}:;<>,.'
 
     password_list = (
-            [secrets.choice(lower) for _ in range(min_lowercase)] +
-            [secrets.choice(uppercase) for _ in range(min_uppercase)] +
-            [secrets.choice(numbers) for _ in range(min_numbers)] +
-            [secrets.choice(symbols) for _ in range(min_symbols)]
+        [secrets.choice(lower) for _ in range(min_lowercase)] +
+        [secrets.choice(uppercase) for _ in range(min_uppercase)] +
+        [secrets.choice(numbers) for _ in range(min_numbers)] +
+        [secrets.choice(symbols) for _ in range(min_symbols)]
     )
 
     remaining = min_length - len(password_list)
@@ -30,35 +32,54 @@ def generate_password():
     secrets.SystemRandom().shuffle(password_list)
 
     password = "".join(password_list)
-    password_entry.insert(0, password) #
+
+    # Copy to clipboard
+    password_entry.delete(0, END)
+    password_entry.insert(0, password)
     pyperclip.copy(password)
+    messagebox.showinfo(title="New Password", message="The password has been copied to clipboard.")
 
 
 def save():
-
     website = website_entry.get()
     email = email_entry.get()
     password = password_entry.get()
 
     if len(website) == 0 or len(password) == 0:
-        messagebox.showinfo(title="Oops", message="Please make sure you haven't left any fields empty.")
+        messagebox.showinfo(title="Incomplete", message="Fill all the fields.")
     else:
-        is_ok = messagebox.askokcancel(title=website, message=f"These are the details entered: \nEmail: {email} "
-                                                      f"\nPassword: {password} \nIs it ok to save?")
+        is_ok = messagebox.askokcancel(title=website, message=f"The details: \n\nEmail: {email} "
+                                                      f"\nPassword: {password} \nOK?")
         if is_ok:
-            with open("data.txt", "a") as data_file:
-                data_file.write(f"{website} | {email} | {password}\n")
-                website_entry.delete(0, END)
-                password_entry.delete(0, END)
+            if not os.path.exists("data.json"):
+                with open("data.json", "w") as data_file:
+                    json.dump([], data_file)  # Create empty list if file doesn't exist
 
+            # Read existing data from file
+            with open("data.json", "r") as data_file:
+                data = json.load(data_file)
 
+            # Save new entry
+            data.append({
+                "website": website,
+                "email": email,
+                "password": password
+            })
+
+            # Write updated data back to the file
+            with open("data.json", "w") as data_file:
+                json.dump(data, data_file, indent=4)
+
+            # Clear input fields after saving
+            website_entry.delete(0, END)
+            password_entry.delete(0, END)
 
 
 window = Tk()
-window.title("Password manager")
+window.title("Password Manager")
 window.config(padx=50, pady=50)
 
-canvas = Canvas(width=400,height=400,  highlightthickness=0)
+canvas = Canvas(width=400, height=400, highlightthickness=0)
 img = PhotoImage(file="logo.png")
 canvas.create_image(200, 200, image=img)
 canvas.grid(column=1, row=0)
@@ -83,6 +104,5 @@ generate_password_button = Button(text="Generate Password", command=generate_pas
 generate_password_button.grid(row=3, column=2)
 add_button = Button(text="Add", width=36, command=save)
 add_button.grid(row=4, column=1, columnspan=2)
-
 
 window.mainloop()
